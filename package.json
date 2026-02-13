@@ -1,0 +1,14 @@
+{
+  "name": "playwright-mcpb-bundle",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Build-time dependencies for the Playwright MCPB bundle.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build:bundle": "node scripts/build-bundle.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.59.0-alpha-1770400094000",
+    "playwright-core": "1.59.0-alpha-1770400094000"
+  }
+}

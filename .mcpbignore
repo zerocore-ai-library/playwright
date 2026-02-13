@@ -1,0 +1,35 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+/.gitmodules
+
+# Upstream source (submodule)
+upstream/
+
+# Local build output (Makefile staging)
+.out/
+
+# Build scripts at bundle root (not needed at runtime)
+/scripts/
+
+# Root metadata (not needed at runtime)
+/package.json
+/package-lock.json
+
+# Safe npm metadata/docs to trim from runtime deps
+node_modules/**/README.md
+node_modules/**/*.d.ts
+node_modules/.package-lock.json
+
+# MCPB bundles
+*.mcpb

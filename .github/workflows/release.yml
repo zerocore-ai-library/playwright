@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20.x"
+
+jobs:
+  dist:
+    name: Build Dist
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Init upstream submodule
+        run: |
+          git submodule sync --recursive
+          for i in 1 2 3 4 5; do
+            git submodule update --init --recursive upstream && break
+            echo "Attempt $i failed, retrying in $((i * 10)) seconds..."
+            sleep $((i * 10))
+          done
+
+      - name: Build upstream dist
+        env:
+          MCPB_SKIP_RUNTIME_DEPS: "1"
+        run: node scripts/build-bundle.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          if-no-files-found: error
+          path: server/**
+
+  build:
+    name: Build (${{ matrix.target }})
+    needs: dist
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-x86_64
+            runner: macos-15-intel
+          - target: darwin-arm64
+            runner: macos-15
+          - target: linux-x86_64
+            runner: ubuntu-24.04
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: win32-x86_64
+            runner: windows-2022
+          - target: win32-arm64
+            runner: windows-11-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: server
+
+      - name: Install runtime deps
+        run: npm ci --omit=dev --no-audit --no-fund
+
+      - uses: zerocore-ai/tool-action/setup@v1
+
+      - uses: zerocore-ai/tool-action/pack@v1
+        with:
+          target: ${{ matrix.target }}
+          output-dir: artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.target }}
+          path: |
+            artifacts/*.mcpb
+            artifacts/*.mcpbx
+            artifacts/*.sha256
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: bundle-*
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/*.mcpb
+            artifacts/*.mcpbx
+            artifacts/*.sha256
